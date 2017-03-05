@@ -1,0 +1,5 @@
+input 
+( (left right) (left right) (left right) )
+
+output
+( (left (path) right) (left (path) right) (left (path) right) )
