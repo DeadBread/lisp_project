@@ -31,8 +31,8 @@
 	list (remove-duplicates (mapcar #'(lambda (x) (group_by_connectors lst (car x) (cadr x))) lst) :test #'equal ) lst))
 
 
-(defun to_determined (gram) 
-	(let ((grm (car gram)))
+(defun to_determined (gram) (
+	let ((grm (car gram)))
 		(cond ((null grm) nil)
 			((cond ((null (cdr grm)) grm)
 				(( append (list (car grm)) (to_determined (list (put_in (process (car grm) gram) (cdr grm)) (cadr gram))))))))))
@@ -43,16 +43,16 @@
 		((add_set_to_set rules grm))))
 
 
-(defun add_set_to_set (left right) 
-	(print right) (format t '"\n\n")
-	(let ( (lst (remove nil (mapcar #'(lambda (x) (set_eql (print x) (print left))) right))))
+(defun add_set_to_set (left right) (
+	;print right) (format t '"\n\n") (
+	let ( (lst (remove nil (mapcar #'(lambda (x) (set_eql x left)) right))))
 		;(print left) (print right) (format t '"\n\n")
 		(cond ((null lst) (append right (list left)))
 			(t right))))
 
 
-(defun set_eql (left right)
-	(equal (set-difference left right :test #'equal) (set-difference right left :test #'equal)))
+(defun set_eql (left right) (
+	equal (set-difference left right :test #'equal) (set-difference right left :test #'equal)))
 
 
 (defun process (rule gram) (
@@ -61,12 +61,43 @@
 			((right_parts (mapcar #'(lambda (x) (caddr x)) rule) gram))))))
 
 
-(defun right_parts (parts gram)
-	(remove nil (reduce #'append (mapcar #'(lambda (r) (right_part r (cadr gram))) parts))))
+(defun right_parts (parts gram) (
+	remove nil (reduce #'append (mapcar #'(lambda (r) (right_part r (cadr gram))) parts))))
 
 
-(defun right_part (left grm)
-	(let ((lst (my-filter #'(lambda (x) (equal (car left) (car x))) grm)))
+(defun right_part (left grm) (
+	let ((lst (my-filter #'(lambda (x) (equal (car left) (car x))) grm)))
 		;(print lst) (print left)
 		(cond ((null lst) (list left))
 			(T lst))))
+
+
+(defun delete_unattainable (gram)
+	(my-filter #'(lambda (rule) (is_unattainable rule gram)) gram))
+
+
+
+(defun is_unattainable (rule gram) (
+	cond ( (equal (car (car rule)) 'S) T)
+		((cond ( (cdr rule) (mult_unattainable rule gram))
+			 ( (unattainable_left (car (car rule)) gram))))))
+
+
+(defun mult_unattainable (rule gram)
+	(cond ((not (same_start rule (car (car rule)))) T)
+		((unattainable_left (car (car rule)) (remove rule gram)))))
+
+
+;check or and "and
+(defun unattainable_left (left gram)
+	(reduce #'(lambda (x y) (or x y)) (mapcar #'(lambda (x) (is_in_right_part left x)) (my-filter #'(lambda (x) (null (cdr x))) gram))))
+
+
+(defun is_in_right_part (letter rule) (
+;	cond ((cdr rule) (right_part_multi_rule letter rule))
+	equal (print (car (caddr (car rule)))) (print letter)))
+
+
+(defun SAME_START (RULE FIRST_LETTER)
+	(cond ((null rule) T)
+		((and (equal first_letter (car (car rule))) (same_start (cdr rule) first_letter)))))
