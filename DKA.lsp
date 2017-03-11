@@ -78,7 +78,7 @@
 
 
 (defun process_big_rule (big_rule gram) (
-	mapcar #'(lambda (x) '(process x gram)) big_rule))
+	mapcar #'(lambda (x) (process x gram)) big_rule))
 
 
 ;
@@ -87,24 +87,25 @@
 		(right_parts_2 connector_list parts (cadr gram))))
 		;remove nil (reduce #'append (mapcar #'(lambda (r) (right_part (car r) (cdr r) (cadr gram))) parts))))
 
+
 (defun right_parts_2 (connector_list parts gram) (
 	cond (( null connector_list) nil)
-		((let ((letters (mapcar #'(lambda (x) (cadr x)) (my-filter #'(lambda (x) (equal (car x) (car connector_list))) parts))))
-			(cons (pick letters gram) (right_parts_2 (cdr connector_list) parts gram))))))
+		((let ((letters_and_co (my-filter #'(lambda (x) (equal (car x) (car connector_list))) parts)))
+			;(print letters_and_co)
+			(cons (pick letters_and_co gram) (right_parts_2 (cdr connector_list) parts gram))))))
 
 
 (defun pick (letters gram) (
-	reduce #'append (mapcar #'(lambda (x) (right_part x gram)) letters)))
+	print (reduce #'cons (mapcar #'(lambda (x) (right_part x gram)) letters))))
 
 
 (defun right_part (left grm) (
-	let ((lst (my-filter #'(lambda (x) (equal (car left) (car x))) grm)))
-		;(print lst) (print left)
-		(cond ((null lst) (list left))
-			(T lst))))
-
-
-
+	let ((lst (my-filter #'(lambda (x) (equal (car (cadr left)) (car x))) grm)))
+		(let ((connectors (remove-duplicates (mapcar #'cadr lst))))
+			;(print lst) (print connectors)
+			(cond ((null lst) (list left))
+				((cond ((null(cdr connectors)) (list lst))
+					(( print (mapcar #'(lambda (con) (my-filter #'(lambda (rul) (equal (cadr rul) con)) lst)) connectors)))))))))
 
 
 
