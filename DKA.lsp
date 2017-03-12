@@ -4,7 +4,7 @@
 
 (defvar gram2 '((S (\a B)) (B (\b B)) (B (\b)) (B (\g G)) (G (\g))))
 
-(defvar NKA '((A \a (B)) (B \b (B)) (B \b (C)) (C \c (C)) (C \c (D)) (C \d ("FIN")) (D \d ("FIN"))))
+(defvar NKA '((A \a B) (B \b B) (B \b C) (C \c C) (C \c D) (C \d "FIN") (D \d "FIN")))
 
 
 ;parses grammar to the separate rules
@@ -43,36 +43,37 @@
 
 ;nsm contains grouped set of rules and just unstructured set of rules as cadr
 (defun to-determined (nsm)
-	(to-determined_2 () (сar nsm) (cadr nsm)))
+	(to-determined_2 () (car nsm) (cadr nsm)))
 
 
 (defun to-determined_2 (watched unwatched all_rules)
-	(cond ((null unwatched) nil)
-	((append (to-determined_2 
-							(cons (car unwatched) watched) 
-							(update_unwatched 
-											watched 
-											unwatched 
-											(process (car unwatched) all_rules))
-							all_rules)))))
+	;(print unwatched) (print watched)
+	(cond ((null unwatched) watched)
+			((append (to-determined_2 
+									(cons (car unwatched) watched) 
+									(update_unwatched 
+													(cons (car unwatched) watched) 
+													(cdr unwatched)
+													(process (car unwatched) all_rules))
+									all_rules)))))
 
 
 ;adding product of "process" function to the unwatched list correctly
 (defun update_unwatched (watched 
 						unwatched
 						to_add)
-	(cond ((null to_add) unwatched)
-		((update_unwatched 
-						watched 
-						(put_in watched unwatched (car to_add)) 
-						(cdr to_add)))))
+		(cond ((null to_add) unwatched)
+			((update_unwatched 
+							watched 
+							(put_in watched unwatched (car to_add)) 
+							(cdr to_add)))))
 
 
 ;adding rule to the "unwatched" set
 (defun put_in ( watched
 				unwatched
 				rule )
-	(cond ((member rule watched) unwatched)
+	(cond ((member rule watched :test equal) unwatched)
 		((adjoin rule unwatched))))
 
 
@@ -81,6 +82,7 @@
 ;this function takes one rule to process and list of all rules of nsm should return set of the rules derived from the one processed rule
 (defun process ( rule
 				 all_rules )
+	;(print rule)
 	;"simple" rules doesn't need any processing
 	(cond ((null (cdr rule)) nil)
 		(T ( let ((con (make_connectors_set rule)))
@@ -99,11 +101,11 @@
 
 ;two next functions create set of vertices to be processed
 (defun make_vertices_set (rule con)
-	(mapcar 
+	(remove nil (mapcar 
 		#'(lambda (connector) (get_right_parts_by_connector 
 														connector
 														rule))
-		con))
+		con)))
 
 
 (defun get_right_parts_by_connector (connector
@@ -111,8 +113,47 @@
 	(mapcar 
 		#'caddr 
 		(my-filter
-				#'(lambda (sub_rule) (equal (cadr sub_rule) connector))
-				rule)))
+				#'(lambda (sub_rule) (cond ((null (cdr sub_rule)) nil)
+										(T(equal (cadr sub_rule) connector))))
+				rule))) 
+
+
+;this function implements processing for all the new vertices we've made previously
+;it decomposes vertices to single letters and reduces results of processing each of them
+;it returns list of all the rules derived from all of the vertices
+(defun process_vertices (vertices all_rules)
+	(cond ((null vertices) nil)
+		(T (cons 
+				(process_vetrex 
+							(car vertices)
+							all_rules)
+				(process_vertices
+							(cdr vertices)
+							all_rules)))))
+
+
+;this decomposes vertex into single letter, processes every letter and sets the result together
+(defun process_vetrex (vertex all_rules)
+	(reduce 
+			#'append 
+			(mapcar
+				#'(lambda (letter) (process_letter
+												letter
+												all_rules))
+				vertex)))
+
+
+;return list of rules derived from one particular letter. 
+;if there is no rule for the letter - it return double list of this letter
+(defun process_letter (letter all_rules)
+	(let ((lst (my-filter 
+					#'(lambda (rule) (equal
+										(car rule)
+										letter))
+					all_rules)))
+		(cond ((null lst) (list (list letter)))
+			(T lst))))
+
 
 
 
