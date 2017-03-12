@@ -6,6 +6,7 @@
 
 (defvar NKA '((A \a B) (B \b B) (B \b C) (C \c C) (C \c D) (C \d "FIN") (D \d "FIN")))
 
+(defvar NKA2 '((H \a A) (A \a A) (A \a S) (H \a B) (H \b B) (B \a B) (B \a A) (B \b S)))
 
 ;parses grammar to the separate rules
 (defun parse (gr) ( 
@@ -15,8 +16,8 @@
 
 ;transposes every grammar rule to the automat rule.
 (defun trans_right (rule) (
-	cond ((null (cdr (cadr rule))) (list (car rule) (car (cadr rule)) '("FIN")))
-		((list (car rule) (car (cadr rule)) (cdr (cadr rule))))))
+	cond ((null (cdr (cadr rule))) (list (car rule) (car (cadr rule)) '"FIN"))
+		((list (car rule) (car (cadr rule)) (cadr (cadr rule))))))
 
 
 ;same for left-sided grammars
@@ -49,13 +50,13 @@
 (defun to-determined_2 (watched unwatched all_rules)
 	;(print unwatched) (print watched)
 	(cond ((null unwatched) watched)
-			((append (to-determined_2 
-									(cons (car unwatched) watched) 
-									(update_unwatched 
-													(cons (car unwatched) watched) 
-													(cdr unwatched)
-													(process (car unwatched) all_rules))
-									all_rules)))))
+		((append (to-determined_2 
+								(cons (car unwatched) watched) 
+								(update_unwatched 
+												(cons (car unwatched) watched) 
+												(cdr unwatched)
+												(process (car unwatched) all_rules))
+								all_rules)))))
 
 
 ;adding product of "process" function to the unwatched list correctly
@@ -73,10 +74,14 @@
 (defun put_in ( watched
 				unwatched
 				rule )
-	(cond ((member rule watched :test equal) unwatched)
+	(cond ((member rule watched :test #'set-equal) unwatched)
 		((adjoin rule unwatched))))
 
 
+(defun set-equal (left right)
+	(and
+		(null (set-difference left right :test #'equal))
+		(null (set-difference right left :test #'equal))))
 
 
 ;this function takes one rule to process and list of all rules of nsm should return set of the rules derived from the one processed rule
@@ -110,12 +115,13 @@
 
 (defun get_right_parts_by_connector (connector
 									 rule)
-	(mapcar 
+	(remove-duplicates (mapcar 
 		#'caddr 
 		(my-filter
 				#'(lambda (sub_rule) (cond ((null (cdr sub_rule)) nil)
 										(T(equal (cadr sub_rule) connector))))
-				rule))) 
+				rule))
+	:test #'equal))
 
 
 ;this function implements processing for all the new vertices we've made previously
