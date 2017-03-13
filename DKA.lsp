@@ -1,14 +1,25 @@
-(defvar gram '((S (\a A)) (S (\a)) (S ("eps")) (A (\a)) (A (\a A))))
+(defvar gram '((H (\a A)) (H (\a)) (H ("eps")) (A (\a)) (A (\a A))))
 
-(defvar lgram '((S (C \c)) (C (A \b)) (C (B \a)) (A (\a)) (A (C \a)) (B (\b)) (B (C \b))))
+;(defvar lgram '((H (C \c)) (C (A \b)) (C (B \a)) (A (\a)) (A (C \a)) (B (\b)) (B (C \b))))
 
-(defvar gram2 '((S (\a B)) (B (\b B)) (B (\b)) (B (\g G)) (G (\g))))
+(defvar gram2 '((H (\a B)) (B (\b B)) (B (\b)) (B (\g G)) (G (\g))))
 
-(defvar NKA '((A \a B) (B \b B) (B \b C) (C \c C) (C \c D) (C \d "FIN") (D \d "FIN")))
+(defvar NKA '((H \a B) (B \b B) (B \b C) (C \c C) (C \c D) (C \d "FIN") (D \d "FIN")))
 
 (defvar NKA2 '((H \a A) (A \a A) (A \a S) (H \a B) (H \b B) (B \a B) (B \a A) (B \b S)))
 
 (defvar NKA3 '((H \a B) (H \a C) (C \b B) (C \c S) (B \b C) (B \b S)))
+
+(defvar NKA4 '((H \a A) (A \a A) (A \b S) (H \a B) (B \b B) (B \a S)))
+
+
+;this function you should use to get the deterministic state machine from the grammar
+(defun grammar (gram) (remove_unattainable (to-determined (group-all (parse gram)))))
+
+
+;this function you should use to get the deterministic state machine from the non-determenistic one
+(defun automat (nka) (remove_unattainable (to-determined (group-all nka))))
+
 
 ;parses grammar to the separate rules
 (defun parse (gr) ( 
@@ -23,9 +34,9 @@
 
 
 ;same for left-sided grammars
-(defun trans_left (rule) (
-	cond ((null (cdr (cadr rule))) (list '"START" (car (cadr rule)) (car rule)))
-		((list (car (cadr rule)) (cadr (cadr rule)) (car rule)))))
+; (defun trans_left (rule) (
+; 	cond ((null (cdr (cadr rule))) (list '"START" (car (cadr rule)) (car rule)))
+; 		((list (car (cadr rule)) (cadr (cadr rule)) (car rule)))))
 
 
 ;realisation of the "filter" functional
@@ -102,11 +113,11 @@
 	;"simple" rules doesn't need any processing
 	(cond ((null (cdr rule)) nil)
 		(T ( let ((con (make_connectors_set rule)))
-				(process_vertices
-						(make_vertices_set 
-										rule
-										con)
-						all_rules)))))
+				(remove nil (process_vertices
+										(make_vertices_set 
+														rule
+														con)
+										all_rules))))))
 
 
 
@@ -152,13 +163,14 @@
 
 ;this decomposes vertex into single letter, processes every letter and sets the result together
 (defun process_vetrex (vertex all_rules)
-	(reduce 
-			#'append 
-			(mapcar
-				#'(lambda (letter) (process_letter
-												letter
-												all_rules))
-				vertex)))
+	(cond ((null (cdr vertex)) nil)
+		((reduce 
+				#'append 
+				(mapcar
+					#'(lambda (letter) (process_letter
+													letter
+													all_rules))
+					vertex)))))
 
 
 ;return list of rules derived from one particular letter. 
@@ -205,27 +217,6 @@
 				all)))))
 
 
-; (defun remove_unattainable_2 (good 
-; 							  all
-; 							  debug)
-; 	(let ((derived (pick_derived 
-; 							good 
-; 							all)))
-; 		(cond ((null (set-difference 
-; 								derived
-; 								good
-; 								:test #'set-equal)) 
-; 				good)
-; 			((cond ((equal debug '0) good)
-; 				( (print derived) (print good)
-; 				(remove_unattainable_2
-; 					(add_set_to_set
-; 								good
-; 								derived)
-; 					all
-; 					(- debug 1)))))))
-
-
 ;adding one set to another (why did I write that? It's just "union")
 (defun add_set_to_set (left right)
 	(cond ((null right) left)
@@ -263,60 +254,6 @@
 					good_rule))
 	
 
-;filters the set of rules of the dsm to remove unattainable ones
-; (defun remove_unattainable (dsm)
-; 	(let ((unattainable_set (find_unattainable dsm)))
-; 		(cond ((null unattainable_set) dsm)
-; 				(T (remove_unattainable 
-; 									(remove_from_set
-; 												  dsm
-; 												  unattainable_set))))))
-
-
-; (defun rm (dsm what)
-; 	;we should not delete rules containing starting node
-; 	(let ((to_delete (my-filter
-; 							#'(lambda (rule) (same_start 
-; 													rule
-; 													'H))
-; 							what)))	
-; 	(remove_from_set
-; 					dsm
-; 					to_delete)))
-
-
-; (defun remove_from_set (this_set
-; 						what)
-; 	(set-difference
-; 				this_set
-; 				what))
-
-
-; (defun find_unattainable (dsm)
-; 	(my-filter
-; 			#'(lambda (rule) (not (same_start 
-; 									rule
-; 									'H)))
-; 			(find_unattainable_2 dsm)))
-
-
-; ;makes set of unattainable rules in dsm
-; (defun find_unattainable_2 (dsm)
-; 	(my-filter 
-; 			#'(lambda (rule) (is_unattainable
-; 											rule 
-; 											dsm))
-; 			dsm))
-
-
-; ;checks if the rule in unattainable. Returns boolean
-; (defun is_unattainable (rule
-; 						dsm)
-; 	(not (is_in_right_parts
-; 					(get_left_part rule)
-; 					(remove rule dsm :test #'set-equal))))
-
-
 ;returns left part of the rule as set of letters
 (defun get_left_part (rule)
 	(remove-duplicates (mapcar 
@@ -324,17 +261,7 @@
 							rule)))
 
 
-; ;checks if this set of letters appears in the right part of any rule in dsm
-; (defun is_in_right_parts (left dsm)
-; 	(reduce
-; 			#'(lambda (x y) (or x y))
-; 			(mapcar
-; 				  #'(lambda (rule) (is_in_right_part
-; 				  									left 
-; 				  									rule))
-; 				  dsm)))
-
-
+;checks if this set of letters appears in the right part of any rule in dsm
 (defun is_in_right_part (left rule)
 	(let ((con (make_connectors_set rule)))
 		(let ((vert_set (make_vertices_set
@@ -347,7 +274,7 @@
 
 
 
-
+;checks if all the sub_rules in this rule ctart with "first letter"
 (defun SAME_START (RULE FIRST_LETTER)
 	(cond ((null rule) T)
 		((and (equal first_letter (car (car rule))) (same_start (cdr rule) first_letter)))))
