@@ -8,6 +8,8 @@
 
 (defvar NKA2 '((H \a A) (A \a A) (A \a S) (H \a B) (H \b B) (B \a B) (B \a A) (B \b S)))
 
+(defvar NKA3 '((H \a B) (H \a C) (C \b B) (C \c S) (B \b C) (B \b S)))
+
 ;parses grammar to the separate rules
 (defun parse (gr) ( 
 	cond ((null gr) nil)
@@ -74,11 +76,20 @@
 (defun put_in ( watched
 				unwatched
 				rule )
-	(cond ((member rule watched :test #'set-equal) unwatched)
-		((adjoin rule unwatched))))
+	(cond ((member 
+				rule 
+				watched 
+				:test #'set-equal) 
+			unwatched)
+		(T (adjoin 
+				rule 
+				unwatched
+				:test #'set-equal))))
 
 
-(defun set-equal (left right)
+;an "equal" function for sets
+(defun set-equal (left 
+				  right)
 	(and
 		(null (set-difference left right :test #'equal))
 		(null (set-difference right left :test #'equal))))
@@ -127,7 +138,8 @@
 ;this function implements processing for all the new vertices we've made previously
 ;it decomposes vertices to single letters and reduces results of processing each of them
 ;it returns list of all the rules derived from all of the vertices
-(defun process_vertices (vertices all_rules)
+(defun process_vertices (vertices 
+						 all_rules)
 	(cond ((null vertices) nil)
 		(T (cons 
 				(process_vetrex 
@@ -151,7 +163,8 @@
 
 ;return list of rules derived from one particular letter. 
 ;if there is no rule for the letter - it return double list of this letter
-(defun process_letter (letter all_rules)
+(defun process_letter (letter 
+					   all_rules)
 	(let ((lst (my-filter 
 					#'(lambda (rule) (equal
 										(car rule)
@@ -161,7 +174,176 @@
 			(T lst))))
 
 
+;removes unattainable rules from dsm
+(defun remove_unattainable (dsm)
+	(let ((begin (my-filter
+						#'(lambda (rule) (same_start 
+												rule
+												'H))
+						dsm)))
+		
+		(remove_unattainable_2
+						begin
+						dsm)))
 
+
+;recursive funtion with accumulator
+(defun remove_unattainable_2 (good 
+							  all)
+	(let ((derived (pick_derived 
+							good 
+							all)))
+		(cond ((null (set-difference
+								derived
+								good 
+								:test #'set-equal)) 
+				good)
+			((remove_unattainable_2
+				(add_set_to_set
+							good
+							derived)
+				all)))))
+
+
+; (defun remove_unattainable_2 (good 
+; 							  all
+; 							  debug)
+; 	(let ((derived (pick_derived 
+; 							good 
+; 							all)))
+; 		(cond ((null (set-difference 
+; 								derived
+; 								good
+; 								:test #'set-equal)) 
+; 				good)
+; 			((cond ((equal debug '0) good)
+; 				( (print derived) (print good)
+; 				(remove_unattainable_2
+; 					(add_set_to_set
+; 								good
+; 								derived)
+; 					all
+; 					(- debug 1)))))))
+
+
+;adding one set to another (why did I write that? It's just "union")
+(defun add_set_to_set (left right)
+	(cond ((null right) left)
+		(T (add_set_to_set
+						(adjoin 
+							(car right)
+							left
+							:test #'set-equal)
+						(cdr right)))))
+
+
+;takes set of the "good" rules and returns set of rules derived from them
+(defun pick_derived (good
+					 all)
+	(remove-duplicates (reduce 
+		#'append
+		(mapcar
+			#'(lambda (good_rule) (derived_by_rule
+												good_rule
+												all))
+			good))))
+
+
+(defun derived_by_rule (good_rule all)
+	(my-filter
+			#'(lambda (rule) (single_derived_by_rule
+												good_rule
+												rule))
+			all))
+
+
+(defun single_derived_by_rule (good_rule rule)
+	(is_in_right_part
+					(get_left_part rule)
+					good_rule))
+	
+
+;filters the set of rules of the dsm to remove unattainable ones
+; (defun remove_unattainable (dsm)
+; 	(let ((unattainable_set (find_unattainable dsm)))
+; 		(cond ((null unattainable_set) dsm)
+; 				(T (remove_unattainable 
+; 									(remove_from_set
+; 												  dsm
+; 												  unattainable_set))))))
+
+
+; (defun rm (dsm what)
+; 	;we should not delete rules containing starting node
+; 	(let ((to_delete (my-filter
+; 							#'(lambda (rule) (same_start 
+; 													rule
+; 													'H))
+; 							what)))	
+; 	(remove_from_set
+; 					dsm
+; 					to_delete)))
+
+
+; (defun remove_from_set (this_set
+; 						what)
+; 	(set-difference
+; 				this_set
+; 				what))
+
+
+; (defun find_unattainable (dsm)
+; 	(my-filter
+; 			#'(lambda (rule) (not (same_start 
+; 									rule
+; 									'H)))
+; 			(find_unattainable_2 dsm)))
+
+
+; ;makes set of unattainable rules in dsm
+; (defun find_unattainable_2 (dsm)
+; 	(my-filter 
+; 			#'(lambda (rule) (is_unattainable
+; 											rule 
+; 											dsm))
+; 			dsm))
+
+
+; ;checks if the rule in unattainable. Returns boolean
+; (defun is_unattainable (rule
+; 						dsm)
+; 	(not (is_in_right_parts
+; 					(get_left_part rule)
+; 					(remove rule dsm :test #'set-equal))))
+
+
+;returns left part of the rule as set of letters
+(defun get_left_part (rule)
+	(remove-duplicates (mapcar 
+							#'car 
+							rule)))
+
+
+; ;checks if this set of letters appears in the right part of any rule in dsm
+; (defun is_in_right_parts (left dsm)
+; 	(reduce
+; 			#'(lambda (x y) (or x y))
+; 			(mapcar
+; 				  #'(lambda (rule) (is_in_right_part
+; 				  									left 
+; 				  									rule))
+; 				  dsm)))
+
+
+(defun is_in_right_part (left rule)
+	(let ((con (make_connectors_set rule)))
+		(let ((vert_set (make_vertices_set
+										rule
+										con)))
+			(member 
+				left 
+				vert_set
+				:test #'set-equal))))
 
 
 
