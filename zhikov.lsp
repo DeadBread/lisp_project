@@ -33,13 +33,58 @@
 
 (defvar NKA4 '((H \a A) (A \a A) (A \b S) (H \a B) (B \b B) (B \a S)))
 
+(defvar test1 '((H \a A) (B \a B) (A \a A) (B \b B) (A \b S) (B \a S)))
+
+
+(defvar gr '((H = \a N \| \b N) (N = \c N \| \d)))
+
+
+;this group of functions doens nothing except transposing input to the inner representation
+
+(defun transpose_grammar (bad_gram)
+	(cond ((null bad_gram) nil)
+	((append (transpose_rule (car bad_gram)) (transpose_grammar (cdr bad_gram))))))
+
+(defun transpose_rule (rule)
+	(transpose_both_parts 
+					(car rule)
+					(cddr rule)))
+
+
+(defun transpose_both_parts (left right)
+	; (print right)
+	(cond ((null right) nil)
+		((or (null (cdr right)) (null (cddr right))) (list (make_simple_rule 
+																left
+																right)))
+		(T (cond ((equal (caddr right) '\|) (cons
+												(make_simple_rule 
+															left 
+															(list (car right) (cadr right)))
+												(transpose_both_parts
+															left
+															(cdddr right))))
+				(T(cons
+						(make_simple_rule
+								left
+								(list (car right)))
+						(transpose_both_parts
+									left 
+									(cddr right))))))))
+
+
+
+(defun make_simple_rule (left right)
+	(list left right))
+
+
 
 ;this function you should use to get the deterministic state machine from the grammar
-(defun grammar (gram) (remove_unattainable (to-determined (group-all (parse gram)))))
+(defun grammar (gram) (trasmit_to_final(remove_unattainable (to-determined (group-all (parse (transpose_grammar gram)))))))
 
 
 ;this function you should use to get the deterministic state machine from the non-determenistic one
-(defun automat (nka) (remove_unattainable (to-determined (group-all nka))))
+(defun automat (nka) (trasmit_to_final (remove_unattainable (to-determined (group-all nka)))))
 
 
 
@@ -318,3 +363,42 @@
 (defun SAME_START (RULE FIRST_LETTER)
 	(cond ((null rule) T)
 		((and (equal first_letter (car (car rule))) (same_start (cdr rule) first_letter)))))
+
+
+
+;formats the output to the presenable form
+(defun trasmit_to_final (dsm)
+	(cond ((null dsm) nil)
+		((null (cdr (car dsm))) (cons 
+									(car dsm) 
+									(trasmit_to_final (cdr dsm))))
+		(T (append 
+				(finalization (car dsm))
+				(trasmit_to_final (cdr dsm))))))
+
+
+(defun finalization (rule)
+	(let ((left (get_left_part rule))
+		(con (make_connectors_set rule)))
+		
+		(my-filter 
+				#'(lambda (x) (cadr x))
+				(mapcar
+						#'(lambda (connector) (new_rule
+													left
+													connector
+													rule))
+						con))))
+
+
+
+(defun new_rule (left
+				 connector
+				 rule)
+	(let ((right (get_right_parts_by_connector
+											connector
+											rule)))
+		(list 
+			left
+			connector
+			right)))
